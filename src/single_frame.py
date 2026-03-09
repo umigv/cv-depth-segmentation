@@ -39,10 +39,10 @@ def do_ransac(image, depths, pool=None, procs=4):
     fx = 360
 
     # generate the mask
+    hsv_mask = rsc.hsv_mask(image)
     depths = rsc.clean_depths(depths)
     ground_mask, px_coeffs = rsc.ground_plane(
         depths, thread_pool=pool, processes=procs)
-    hsv_mask = rsc.hsv_mask(image)
     lane_mask = rsc.merge_masks(ground_mask, hsv_mask)
 
     # find real plane equation
