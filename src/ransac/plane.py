@@ -1,11 +1,10 @@
 # ground plane mask creation
 
-from ransac import *
+from ransac.common import *
 
 import random
 import math
 
-from multiprocessing import Pool
 import warnings
 import numpy as np
 import cv2

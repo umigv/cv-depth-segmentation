@@ -1,5 +1,5 @@
-from ransac import *
-import ransac.plane
+from ransac.common import *
+from ransac.plane import *
 
 import numpy as np
 import cv2
@@ -29,7 +29,7 @@ def pixel_to_real(
     cloud[:, 0] = pixel_cloud[:, 2] * (pixel_cloud[:, 0] - intr.cx) / intr.fx
     cloud[:, 1] = pixel_cloud[:, 2] * (intr.cy - pixel_cloud[:, 1]) / intr.fy
 
-    depression = ransac.plane.real_angle(real_coeffs)
+    depression = real_angle(real_coeffs)
     c_1 = math.cos(depression)
     s_1 = math.sin(depression)
     # each column affects the output (x, y, z) respectively
@@ -58,9 +58,10 @@ def composite(drive_occ, block_occ):
 # INPUT: np.uint8 array representing the image mask
 def occ_grid(mask_in, real_coeffs, intr: Intrinsics, conf: GridConfiguration,
             pos: CameraPosition, thres=200):
+    res = 1
     # grid should be symmetric
     # first and second indices are number of layers to compute
-    grid_shape = (3, 3, 2 * int((0.5 * conf.gh) // conf.cw),
+    grid_shape = (res, res, 2 * int((0.5 * conf.gh) // conf.cw),
                   2 * int((0.5 * conf.gw) // conf.cw))
     true_width = conf.cw * grid_shape[3]
     true_height = conf.cw * grid_shape[2]
@@ -88,7 +89,7 @@ def occ_grid(mask_in, real_coeffs, intr: Intrinsics, conf: GridConfiguration,
 
     # project onto the camera plane
     a, b, d = real_coeffs
-    theta = ransac.plane.real_angle(real_coeffs)
+    theta = real_angle(real_coeffs)
     cam_height = math.sin(theta) * d
     cys = cys * math.sin(theta)
     cys = cys - math.cos(theta) * cam_height
