@@ -2,26 +2,3 @@
 from ransac.plane import *
 from ransac.occu import *
 from ransac.common import *
-from dataclasses import dataclass
-
-@dataclass
-class Intrinsics:
-    cx: float
-    cy: float
-    fx: float
-    fy: float
-    tx: float = 0
-
-
-@dataclass
-class GridConfiguration:
-    gw: float  # grid width in mm
-    gh: float  # grid height in mm
-    cw: float  # cell width in mm
-
-
-@dataclass
-class CameraPosition:
-    x: float  # mm, positive is right of wheelbase
-    y: float  # mm, positive is forward from wheelbase
-    h: float  # radians, positive is anticlockwise
