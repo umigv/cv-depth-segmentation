@@ -29,6 +29,7 @@ import numpy as np
 import threading
 import time
 import signal
+import os
 
 zed_list = []
 left_list = []
@@ -150,6 +151,9 @@ def main():
                     last_ts_list[index] = timestamp_list[index]
         key = cv2.waitKey(10)
 
+    if not os.path.isdir('out'):
+        os.mkdir('out')
+        
     hdf5_path = "out/multi_camera_record.hdf5"
     print(f"\nWriting to {hdf5_path}...")
 
