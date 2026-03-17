@@ -18,6 +18,6 @@ class GridConfiguration:
 
 @dataclass
 class CameraPosition:
-    x: float  # mm, positive is right of wheelbase
-    y: float  # mm, positive is forward from wheelbase
-    h: float  # radians, positive is anticlockwise
+    x: float = 0  # mm, positive is right of wheelbase
+    y: float = 0  # mm, positive is forward from wheelbase
+    h: float = 0  # radians, positive is anticlockwise

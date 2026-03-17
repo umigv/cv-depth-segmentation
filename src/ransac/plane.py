@@ -140,7 +140,7 @@ def real_angle(real_coeffs):
 
 def hsv_mask(image):
     image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    lower_white = np.array([0, 0, 190], dtype=np.uint8)
+    lower_white = np.array([0, 0, 180], dtype=np.uint8)
     upper_white = np.array([255, 50, 255], dtype=np.uint8)
     return 255 * cv2.inRange(image, lower_white, upper_white).astype(np.uint8)
 

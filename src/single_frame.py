@@ -8,8 +8,7 @@ import cv2
 import time
 
 
-def get_frame(frame_number=-1):
-    filename = "res/perspective_test.svo2.hdf5"
+def get_frame(filename="res/perspective_test.svo2.hdf5",  frame_number=-1):
     f = h5py.File(filename, "r")
     frames = len(f["depth_maps"])
 
@@ -78,7 +77,7 @@ def main():
     start = time.perf_counter_ns()
     lane_mask, occupancy_grid = do_ransac(image, depths, pool, procs)
     end = time.perf_counter_ns()
-    
+
     print(f"\n----- {(end - start) / 1e6:.0f} ms -----\n")
     display(lane_mask, occupancy_grid)
 
