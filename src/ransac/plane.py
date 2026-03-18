@@ -1,11 +1,12 @@
 # ground plane mask creation
 
-from ransac.common import *
+from .common import *
 
+from typing import cast
+import warnings
 import random
 import math
 
-import warnings
 import numpy as np
 import cv2
 
@@ -94,12 +95,11 @@ def ground_plane(
 
     pooled = _pool(inv_depths, kernel)
 
-    best_coeffs = guess.astype(float)
-    if guess.shape != (3,):
+    best_coeffs = np.array([0.0, 0.0, 0.0])
+    if guess.shape != (3,) or guess is None:
         print("warning: invalid plane coefficient estimates")
-        best_coeffs = np.array([0.0, 0.0, 0.0])
     else:
-        best_coeffs *= float(max_depth)
+        best_coeffs = max_depth * guess.astype(float)
         best_coeffs[0] *= float(kernel[1])
         best_coeffs[1] *= float(kernel[0])
     best = _metric(pooled, best_coeffs, tol)
@@ -114,6 +114,7 @@ def ground_plane(
             _ground_plane, [args for _ in range(processes)])
         _, best_coeffs = max(results, key=lambda t: t[0])
 
+    best_coeffs = cast(np.ndarray, best_coeffs)
     best_coeffs[0] /= kernel[1]
     best_coeffs[1] /= kernel[0]
 

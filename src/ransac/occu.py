@@ -1,8 +1,9 @@
-from ransac.common import *
-from ransac.plane import *
+# occupancy grid generation
+
+from .common import *
+from . import plane
 
 import numpy as np
-import cv2
 
 import math
 
@@ -29,7 +30,7 @@ def pixel_to_real(
     cloud[:, 0] = pixel_cloud[:, 2] * (pixel_cloud[:, 0] - intr.cx) / intr.fx
     cloud[:, 1] = pixel_cloud[:, 2] * (intr.cy - pixel_cloud[:, 1]) / intr.fy
 
-    depression = real_angle(real_coeffs)
+    depression = plane.real_angle(real_coeffs)
     c_1 = math.cos(depression)
     s_1 = math.sin(depression)
     # each column affects the output (x, y, z) respectively
@@ -57,7 +58,7 @@ def composite(drive_occ, block_occ):
 # the numpy fuckery in this just helps interpolation
 # INPUT: np.uint8 array representing the image mask
 def occ_grid(mask_in, real_coeffs, intr: Intrinsics, conf: GridConfiguration,
-            pos: CameraPosition, thres=200):
+             pos: CameraPosition, thres=200):
     res = 1
     # grid should be symmetric
     # first and second indices are number of layers to compute
@@ -89,7 +90,7 @@ def occ_grid(mask_in, real_coeffs, intr: Intrinsics, conf: GridConfiguration,
 
     # project onto the camera plane
     a, b, d = real_coeffs
-    theta = real_angle(real_coeffs)
+    theta = plane.real_angle(real_coeffs)
     cam_height = math.sin(theta) * d
     cys = cys * math.sin(theta)
     cys = cys - math.cos(theta) * cam_height

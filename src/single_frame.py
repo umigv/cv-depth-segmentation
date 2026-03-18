@@ -1,24 +1,30 @@
 import ransac as rsc
+
+import matplotlib.pyplot as plt
 import h5py
+import cv2
+
+from multiprocessing import Pool
+from typing import cast
+import time
 import random
 import math
-from multiprocessing import Pool
-import matplotlib.pyplot as plt
-import cv2
-import time
 
 
 def get_frame(filename="res/perspective_test.svo2.hdf5",  frame_number=-1):
     f = h5py.File(filename, "r")
-    frames = len(f["depth_maps"])
+
+    images = cast(h5py.Dataset, f["images"])
+    depth_maps = cast(h5py.Dataset, f["depth_maps"])
+    frames = len(depth_maps)
 
     if frame_number < 0:
         frame_number = random.randint(1, frames - 2)
     elif frame_number >= frames:
         frame_number = frames - 1
 
-    depths = f["depth_maps"][frame_number]
-    image = f["images"][frame_number]
+    depths = depth_maps[frame_number]
+    image = images[frame_number]
     image = image[:, 0: int(image.shape[1] / 2)]
 
     print()

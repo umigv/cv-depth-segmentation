@@ -1,10 +1,11 @@
 import ransac as rsc
 
-import h5py
-import numpy as np
-
 import matplotlib.pyplot as plt
+import numpy as np
+import h5py
+
 import math
+
 
 def main():
     file = h5py.File("res/dual_camera_calibration.hdf5", "r")
@@ -15,8 +16,8 @@ def main():
     depseg = rsc.DepthSegementation(
         [(left, rsc.CameraPosition(0, 0, math.radians(20))),
          (right, rsc.CameraPosition(250, 200, 0))], conf)
-    
-    print(f"using frame number: {left.use_frame(100)}")
+
+    print(f"using frame number: {left.use_frame(-1)}")
     right.use_frame(left.frame_number)
     depseg.process()
 
