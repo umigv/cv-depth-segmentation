@@ -153,7 +153,7 @@ def main():
 
     if not os.path.isdir('out'):
         os.mkdir('out')
-        
+
     hdf5_path = "out/multi_camera_record.hdf5"
     print(f"\nWriting to {hdf5_path}...")
 
