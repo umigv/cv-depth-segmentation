@@ -11,7 +11,9 @@ def main():
     file = h5py.File("res/dual_camera_calibration.hdf5", "r")
     left = rsc.HDF5Source(file, 0)
     right = rsc.HDF5Source(file, 1)
-
+    
+    
+    # everything you need to set up
     conf = rsc.GridConfiguration(5000.0, 5000.0, 50.0)
     depseg = rsc.DepthSegementation(
         [(left, rsc.CameraPosition(0, 0, math.radians(20))),
@@ -19,7 +21,11 @@ def main():
 
     print(f"using frame number: {left.use_frame(-1)}")
     right.use_frame(left.frame_number)
+    
+    # run every frame data update (check timestamps are different)
     depseg.process()
+
+    # everything after here is just matplotlib
 
     f, axs = plt.subplot_mosaic(
         [
@@ -37,9 +43,9 @@ def main():
     axs['rgrid'].imshow(depseg.grids[1], cmap='gray')
 
     axs['diff'].set_title('difference grid')
-    axs['diff'].imshow(depseg.reduce(np.logical_xor), cmap='gray')
+    axs['diff'].imshow(depseg.merge_simple(np.logical_xor), cmap='gray')
     axs['final'].set_title('combined grid')
-    axs['final'].imshow(depseg.merged_grid(), cmap='gray')
+    axs['final'].imshow(depseg.merge_grids(), cmap='gray')
 
     f.tight_layout()
     plt.show()

@@ -10,6 +10,14 @@ from multiprocessing import Pool
 from typing import cast
 import random
 
+using_zed = True
+try:
+    import pyzed.sl as sl
+    import threading
+except ImportError:
+    print("[warn] pyzed not found, LiveSource will not work")
+    using_zed = False
+
 
 class DepthSource:
     """Generic data source for for depth segmentation"""
@@ -17,8 +25,8 @@ class DepthSource:
     def timestamp(self) -> int:
         return 0
 
-    def update(self):
-        pass
+    def update(self) -> bool:
+        return False
 
     def image(self) -> np.ndarray:
         return np.empty((1, 1))
@@ -56,11 +64,15 @@ class HDF5Source(DepthSource):
         self.frame_count = len(self.timestamps)
         self.frame_number = 0
         self.update()
+        
+    def __delete__(self):
+        self.file.close()
 
-    def update(self):
+    def update(self) -> bool:
         self._timestamp = int(self.timestamps[self.frame_number][()])
         self._image = np.array(self.images[self.frame_number])
         self._depth_map = np.array(self.depth_maps[self.frame_number])
+        return True
 
     def use_frame(self, frame=-1):
         if frame < 0 or frame >= self.frame_count:
@@ -87,48 +99,149 @@ class HDF5Source(DepthSource):
         return f"hdf5 depth source"
 
 
+class LiveSource(DepthSource):
+    """Provides depth data from the zed camera.
+
+    `update()` is blocking so should be called in a thread if needing async updates
+
+    example:
+    ````
+    def grab(source: DepthSource):
+        while source.update():
+            time.sleep(0.001)
+
+    grab_thread = threading.Thread(target=grab, args=(source,))
+    ```
+    """
+
+    def __init__(self, params: sl.InitParameters | None = None,
+                 max_res: tuple[int, int] | None = None):
+        self._timestamp = 0
+        self._image = np.empty((1, 1))
+        self._depth_map = np.empty((1, 1))
+
+        if using_zed:
+            self.cam = sl.Camera()
+            self._image_mat = sl.Mat()
+            self._depth_map_mat = sl.Mat()
+
+            status = self.cam.open(params)
+            if status != sl.ERROR_CODE_SUCCESS:
+                print(repr(status))
+                self.cam.close()
+
+            cam_conf = self.cam.get_camera_information().camera_configuration
+            left_calib = cam_conf.calibration_params.left_cam
+            self.res = cam_conf.resolution
+
+            fx = left_calib.fx / self.res.width
+            fy = left_calib.fy / self.res.height
+            cx = left_calib.cx / self.res.width
+            cy = left_calib.cy / self.res.height
+            tx = cam_conf.calibration_params.stereo_transform \
+                .get_translation().get()[0]
+
+            if max_res:
+                self.res = sl.Resolution(min(max_res[0], self.res.width),
+                                         min(max_res[1], self.res.height))
+
+            self._intrinsics = Intrinsics(cx=cx * self.res.width,
+                                          cy=cy * self.res.height,
+                                          fx=fx * self.res.width,
+                                          fy=fy * self.res.height,
+                                          tx=tx)
+        else:
+            print("[warn] LiveSource should not be initialised without the Zed SDK")
+            pass  # ! TODO: fill this out?
+
+    def __delete__(self):
+        if using_zed:
+            self.cam.close()
+
+    def update(self) -> bool:
+        if not using_zed:
+            return False
+
+        runtime = sl.RuntimeParameters()
+        err = self.cam.grab(runtime)
+        if err == sl.ERROR_CODE_SUCCESS:
+            self.cam.retrieve_image(
+                self._image_mat, sl.VIEW.LEFT, sl.MEM.CPU, self.res)
+            self.cam.retrieve_measure(
+                self._depth_map_mat, sl.MEASURE.DEPTH, sl.MEM.CPU, self.res)
+            self._timestamp = \
+                self.cam.get_timestamp(sl.TIME_REFERENCE.CURRENT).data_ns
+            return True
+
+        print("[error] while grabbing frame:", err)
+        return False
+
+    def timestamp(self) -> int:
+        return self._timestamp
+
+    def image(self) -> np.ndarray:
+        return self._image_mat.get_data()
+
+    def depth_map(self) -> np.ndarray:
+        return self._depth_map_mat.get_data()
+
+    def intrinsics(self) -> Intrinsics:
+        return self._intrinsics
+
+    def about(self) -> str:
+        return f"live depth source ({"active" if using_zed else "inactive"})"
+
+
 class DepthSegementation:
     """Handles all depth segmentation processing. Requires sources to be `.update()`d before calling `process()`"""
 
     def __init__(self, sources: list[tuple[DepthSource, CameraPosition]], grid_conf: GridConfiguration, processes=4):
         self.grid_conf = grid_conf
 
-        self.sources = sources
-        self.guesses = [np.array([0.0, 0.0, 0.0], dtype=float)
-                        for _ in sources]
+        self._sources = sources
+        self._guesses = [np.array([0.0, 0.0, 0.0], dtype=float)
+                         for _ in sources]
+
+        self.timestamps = [0 for _ in sources]
         self.masks = [np.array([]) for _ in sources]
         self.grids = [np.array([]) for _ in sources]
 
-        self.processes = processes
+        self._processes = processes
+        self._pool = Pool(processes) if processes > 0 else None
 
-        self.pool = Pool(processes) if processes > 0 else None
+    def process(self) -> bool:
+        updated = False
 
-    def process(self):
         index = 0
-        for source, position in self.sources:
+        for source, position in self._sources:
+            if self.timestamps[index] != source.timestamp():
+                self.timestamps[index] = source.timestamp()
+                updated = True
             hsv_mask = plane.hsv_mask(source.image())
             depth_map = plane.clean_depths(source.depth_map())
             ground_mask, px_coeffs = plane.ground_plane(
-                depth_map, 200, (1, 16), 0.12, self.guesses[index],
-                self.pool, self.processes)
+                depth_map, 200, (1, 16), 0.12, self._guesses[index],
+                self._pool, self._processes)
             lane_mask = plane.merge_masks(ground_mask, hsv_mask)
 
             real_coeffs = plane.real_coeffs(px_coeffs, source.intrinsics())
             occ = occu.occ_grid(lane_mask, real_coeffs,
                                 source.intrinsics(), self.grid_conf, position)
 
-            self.guesses[index] = px_coeffs
+            self._guesses[index] = px_coeffs
             self.masks[index] = lane_mask
             self.grids[index] = occ
             index += 1
 
-    def reduce(self, strategy=np.maximum):
+        return updated
+
+    def merge_simple(self, strategy=np.maximum):
         if len(self.grids) == 0:
             return np.array([])
 
         return strategy.reduce(self.grids)
 
-    def merged_grid(self):
-        seen = np.where(self.reduce(np.maximum) == 255, 255, 127)
-        blocked = np.logical_and(self.reduce(np.minimum) == 0, seen != 255)
+    def merge_grids(self):
+        seen = np.where(self.merge_simple(np.maximum) == 255, 255, 127)
+        blocked = np.logical_and(self.merge_simple(np.minimum) == 0, seen != 255)
         return np.where(blocked, 0, seen)
