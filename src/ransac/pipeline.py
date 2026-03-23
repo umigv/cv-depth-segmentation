@@ -126,19 +126,19 @@ class LiveSource(DepthSource):
             self._depth_map_mat = sl.Mat()
 
             status = self.cam.open(params)
-            if status != sl.ERROR_CODE_SUCCESS:
+            if status != sl.ERROR_CODE.SUCCESS:
                 print(repr(status))
                 self.cam.close()
 
             cam_conf = self.cam.get_camera_information().camera_configuration
-            left_calib = cam_conf.calibration_params.left_cam
+            left_calib = cam_conf.calibration_parameters.left_cam
             self.res = cam_conf.resolution
 
             fx = left_calib.fx / self.res.width
             fy = left_calib.fy / self.res.height
             cx = left_calib.cx / self.res.width
             cy = left_calib.cy / self.res.height
-            tx = cam_conf.calibration_params.stereo_transform \
+            tx = cam_conf.calibration_parameters.stereo_transform \
                 .get_translation().get()[0]
 
             if max_res:
@@ -164,7 +164,7 @@ class LiveSource(DepthSource):
 
         runtime = sl.RuntimeParameters()
         err = self.cam.grab(runtime)
-        if err == sl.ERROR_CODE_SUCCESS:
+        if err == sl.ERROR_CODE.SUCCESS:
             self.cam.retrieve_image(
                 self._image_mat, sl.VIEW.LEFT, sl.MEM.CPU, self.res)
             self.cam.retrieve_measure(
@@ -189,7 +189,7 @@ class LiveSource(DepthSource):
         return self._intrinsics
 
     def about(self) -> str:
-        return f"live depth source ({"active" if using_zed else "inactive"})"
+        return f"live depth source ({'active' if using_zed else 'inactive'})"
 
 
 class DepthSegementation:
@@ -212,11 +212,14 @@ class DepthSegementation:
     def process(self) -> bool:
         updated = False
 
-        index = 0
+        index = -1
         for source, position in self._sources:
+            index += 1
             if self.timestamps[index] != source.timestamp():
                 self.timestamps[index] = source.timestamp()
                 updated = True
+            else:
+                continue
             hsv_mask = plane.hsv_mask(source.image())
             depth_map = plane.clean_depths(source.depth_map())
             ground_mask, px_coeffs = plane.ground_plane(
@@ -231,7 +234,6 @@ class DepthSegementation:
             self._guesses[index] = px_coeffs
             self.masks[index] = lane_mask
             self.grids[index] = occ
-            index += 1
 
         return updated
 
