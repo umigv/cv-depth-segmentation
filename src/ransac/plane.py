@@ -147,8 +147,7 @@ def hsv_mask(image):
 
 
 def merge_masks(ground, hsv):
-    lane_mask = hsv & ground
-    driveable = ((ground == 255) & (lane_mask == 0))
+    driveable = ((ground == 255) & (hsv == 0))
     driveable = driveable.astype(np.uint8) * 255
 
     close_kernel = np.ones((2, 2), np.uint8)
