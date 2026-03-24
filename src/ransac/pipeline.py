@@ -134,6 +134,7 @@ class LiveSource(DepthSource):
             left_calib = cam_conf.calibration_parameters.left_cam
             self.res = cam_conf.resolution
 
+            # intrinsics as proportions of resolution
             fx = left_calib.fx / self.res.width
             fy = left_calib.fy / self.res.height
             cx = left_calib.cx / self.res.width
@@ -145,6 +146,7 @@ class LiveSource(DepthSource):
                 self.res = sl.Resolution(min(max_res[0], self.res.width),
                                          min(max_res[1], self.res.height))
 
+            # scale intrinsics back up
             self._intrinsics = Intrinsics(cx=cx * self.res.width,
                                           cy=cy * self.res.height,
                                           fx=fx * self.res.width,
