@@ -139,15 +139,8 @@ def real_angle(real_coeffs):
     return math.pi / 2 - rad
 
 
-def hsv_mask(image):
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    lower_white = np.array([0, 0, 180], dtype=np.uint8)
-    upper_white = np.array([255, 50, 255], dtype=np.uint8)
-    return 255 * cv2.inRange(image, lower_white, upper_white).astype(np.uint8)
-
-
-def merge_masks(ground, hsv):
-    driveable = ((ground == 255) & (hsv == 0))
+def merge_masks(ground, mask):
+    driveable = ((ground == 255) & (mask == 0))
     driveable = driveable.astype(np.uint8) * 255
 
     close_kernel = np.ones((2, 2), np.uint8)

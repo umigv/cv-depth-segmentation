@@ -5,6 +5,7 @@ from . import plane, occu
 
 import numpy as np
 import h5py
+import cv2
 
 from multiprocessing import Pool
 from typing import cast
@@ -64,7 +65,7 @@ class HDF5Source(DepthSource):
         self.frame_count = len(self.timestamps)
         self.frame_number = 0
         self.update()
-        
+
     def __delete__(self):
         self.file.close()
 
@@ -194,11 +195,24 @@ class LiveSource(DepthSource):
         return f"live depth source ({'active' if using_zed else 'inactive'})"
 
 
+class BasicHSV:
+    def __init__(self, lower=np.array([0, 0, 180], dtype=np.uint8),
+                 upper=np.array([255, 50, 255], dtype=np.uint8)):
+        self.lower = lower
+        self.upper = upper
+
+    def __call__(self, image: np.ndarray):
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(image, self.lower, self.upper)
+        return 255 * mask.astype(np.uint8)
+
+
 class DepthSegementation:
     """Handles all depth segmentation processing. Requires sources to be `.update()`d before calling `process()`"""
 
-    def __init__(self, sources: list[tuple[DepthSource, CameraPosition]], grid_conf: GridConfiguration, processes=4):
+    def __init__(self, sources: list[tuple[DepthSource, CameraPosition]], grid_conf: GridConfiguration, mask_method=BasicHSV(), processes=4):
         self.grid_conf = grid_conf
+        self.mask_method = mask_method
 
         self._sources = sources
         self._guesses = [np.array([0.0, 0.0, 0.0], dtype=float)
@@ -222,7 +236,7 @@ class DepthSegementation:
                 updated = True
             else:
                 continue
-            hsv_mask = plane.hsv_mask(source.image())
+            hsv_mask = self.mask_method(source.image())
             depth_map = plane.clean_depths(source.depth_map())
             ground_mask, px_coeffs = plane.ground_plane(
                 depth_map, 200, (1, 16), 0.12, self._guesses[index],
@@ -247,5 +261,6 @@ class DepthSegementation:
 
     def merge_grids(self):
         seen = np.where(self.merge_simple(np.maximum) == 255, 255, 127)
-        blocked = np.logical_and(self.merge_simple(np.minimum) == 0, seen != 255)
+        blocked = np.logical_and(
+            self.merge_simple(np.minimum) == 0, seen != 255)
         return np.where(blocked, 0, seen)
