@@ -15,7 +15,6 @@ import random
 using_zed = True
 try:
     import pyzed.sl as sl
-    import threading
 except ImportError:
     print("[warn] pyzed not found, LiveSource will not work")
     using_zed = False
@@ -104,7 +103,7 @@ class HDF5Source(DepthSource):
         return self._intrinsics
 
     def about(self):
-        return f"hdf5 depth source"
+        return f"hdf5 depth source ({self.file.filename})"
 
 
 class LiveSource(DepthSource):
