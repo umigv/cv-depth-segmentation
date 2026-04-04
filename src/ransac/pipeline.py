@@ -7,6 +7,7 @@ import numpy as np
 import h5py
 import cv2
 
+import abc
 from multiprocessing import Pool
 from typing import cast
 import random
@@ -20,26 +21,32 @@ except ImportError:
     using_zed = False
 
 
-class DepthSource:
+class DepthSource(metaclass=abc.ABCMeta):
     """Generic data source for for depth segmentation"""
 
+    @abc.abstractmethod
     def timestamp(self) -> int:
-        return 0
+        pass
 
+    @abc.abstractmethod
     def update(self) -> bool:
-        return False
+        pass
 
+    @abc.abstractmethod
     def image(self) -> np.ndarray:
-        return np.empty((1, 1))
+        pass
 
+    @abc.abstractmethod
     def depth_map(self) -> np.ndarray:
-        return np.empty((1, 1))
+        pass
 
+    @abc.abstractmethod
     def intrinsics(self) -> Intrinsics:
-        return Intrinsics(1, 1, 1, 1)
+        pass
 
+    @abc.abstractmethod
     def about(self) -> str:
-        return "generic depth source, using this will break things"
+        pass
 
 
 class HDF5Source(DepthSource):
@@ -195,7 +202,18 @@ class LiveSource(DepthSource):
         return f"live depth source ({'active' if using_zed else 'inactive'})"
 
 
-class BasicHSV:
+class MaskMethod(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def __call__(self, image: np.ndarray) -> np.ndarray:
+        pass
+
+
+class NoMask(MaskMethod):
+    def __call__(self, image: np.ndarray):
+        return image
+
+
+class BasicHSV(MaskMethod):
     def __init__(self, lower=np.array([0, 0, 180], dtype=np.uint8),
                  upper=np.array([255, 50, 255], dtype=np.uint8)):
         self.lower = lower
@@ -211,9 +229,9 @@ class DepthSegementation:
     """Handles all depth segmentation processing. Requires sources to be `.update()`d before calling `process()`"""
 
     def __init__(self, sources: list[tuple[DepthSource, CameraPosition]],
-                 grid_conf: GridConfiguration, processes=4, *args, mask_method=BasicHSV(), **kwargs):
+                 grid_conf: GridConfiguration, processes=4, *args, mask_method: MaskMethod = BasicHSV(), **kwargs):
         self.grid_conf = grid_conf
-        self.mask_method = mask_method # keyword-only
+        self.mask_method = mask_method  # keyword-only
 
         self._sources = sources
         self._guesses = [np.array([0.0, 0.0, 0.0], dtype=float)
