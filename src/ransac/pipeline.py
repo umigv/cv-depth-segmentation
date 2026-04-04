@@ -244,17 +244,18 @@ class DepthSegementation:
         self._processes = processes
         self._pool = Pool(processes) if processes > 0 else None
 
-    def process(self) -> bool:
-        updated = False
+    def process(self, force_update=False) -> bool:
+        updated = force_update
 
         index = -1
         for source, position in self._sources:
             index += 1
-            if self.timestamps[index] != source.timestamp():
-                self.timestamps[index] = source.timestamp()
-                updated = True
-            else:
-                continue
+            if not force_update:
+                if self.timestamps[index] != source.timestamp():
+                    self.timestamps[index] = source.timestamp()
+                    updated = True
+                else:
+                    continue
             hsv_mask = self.mask_method(source.image())
             depth_map = plane.clean_depths(source.depth_map())
             ground_mask, px_coeffs = plane.ground_plane(
