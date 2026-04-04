@@ -210,9 +210,10 @@ class BasicHSV:
 class DepthSegementation:
     """Handles all depth segmentation processing. Requires sources to be `.update()`d before calling `process()`"""
 
-    def __init__(self, sources: list[tuple[DepthSource, CameraPosition]], grid_conf: GridConfiguration, mask_method=BasicHSV(), processes=4):
+    def __init__(self, sources: list[tuple[DepthSource, CameraPosition]],
+                 grid_conf: GridConfiguration, processes=4, *args, mask_method=BasicHSV(), **kwargs):
         self.grid_conf = grid_conf
-        self.mask_method = mask_method
+        self.mask_method = mask_method # keyword-only
 
         self._sources = sources
         self._guesses = [np.array([0.0, 0.0, 0.0], dtype=float)
