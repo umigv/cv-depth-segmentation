@@ -135,9 +135,9 @@ def main():
                     serial = name_list[index]
                     timestamps[serial].append(timestamp_list[index])
                     images[serial].append(
-                        left_list[index].get_data(deep_copy=true)[:, :, :3])
+                        left_list[index].get_data()[:, :, :3].copy())
                     depths[serial].append(
-                        depth_list[index].get_data(deep_copy=true))
+                        depth_list[index].get_data().copy())
 
                     cv2.imshow(name_list[index], left_list[index].get_data())
 
