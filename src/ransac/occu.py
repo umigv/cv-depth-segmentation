@@ -55,6 +55,7 @@ def composite(drive_occ, block_occ):
 
 
 # TODO decompose pitch + roll angles
+# TODO? can shave off a few ms by computing transformation matrix and using cv2.warpPerspective
 # the numpy fuckery in this just helps interpolation
 # INPUT: np.uint8 array representing the image mask
 def occ_grid(mask_in, real_coeffs, intr: Intrinsics, conf: GridConfiguration,
