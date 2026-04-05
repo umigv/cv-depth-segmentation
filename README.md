@@ -7,6 +7,13 @@ Provides the depth segmentation pipeline. Runs RANSAC on depth footage, performs
 - `live_single.py` shows depth segmentation live on one camera
 - `tuner.py` allows tuning of the camera positions from pre-recorded or live footage
 
+## requirements
+
+- Python 3.14 (deferred type annotation evaluation)
+- `opencv-python`
+- `numpy>=2`
+- `h5py`
+
 ## tuning camera positions
 
 `DepthSegmentation`, the depth processing abstraction, requires that every `DepthSource` be accompanied with a `CameraPosition`. To calibrate these parameters, you can use `tuner.py`.
