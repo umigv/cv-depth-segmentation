@@ -19,7 +19,7 @@
 ########################################################################
 
 """
-    Multi cameras sample showing how to open multiple ZED in one program
+    Multi cameras sample showing how to open multiple ZED in one program. Remember to check the images and depths in at https://myhdf5.hdfgroup.org/ to confirm that they have recorded properly.
 """
 
 import pyzed.sl as sl
@@ -99,7 +99,7 @@ def main():
         name_list.append(f"{cam.serial_number}")
         print("Opening {}".format(name_list[index]))
         zed_list.append(sl.Camera())
-        left_list.append(sl.Mat())
+        left_list.append(sl.Mat(mat_type=sl.MAT_TYPE.U8_C3))
         depth_list.append(sl.Mat())
         timestamp_list.append(0)
         last_ts_list.append(0)
@@ -135,8 +135,9 @@ def main():
                     serial = name_list[index]
                     timestamps[serial].append(timestamp_list[index])
                     images[serial].append(
-                        left_list[index].get_data()[:, :, :3])
-                    depths[serial].append(depth_list[index].get_data())
+                        left_list[index].get_data(deep_copy=true)[:, :, :3])
+                    depths[serial].append(
+                        depth_list[index].get_data(deep_copy=true))
 
                     cv2.imshow(name_list[index], left_list[index].get_data())
 
@@ -213,7 +214,7 @@ def main():
     for index in range(0, len(thread_list)):
         thread_list[index].join()
 
-    print("\nFINISH")
+    print("\nFinished, remember to check the output file to confirm successful recording")
 
 
 if __name__ == "__main__":
