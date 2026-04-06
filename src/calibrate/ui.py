@@ -75,13 +75,13 @@ class CameraUI:
 
         # Camera Top View
         cam_view = np.ones((260, width, 3), dtype=np.uint8) * 30
-        pL, pR = self.params["left"], self.params["right"]
-        c1 = np.array([width // 2 - 50 + pL["x_offset"]
-                      * 2, 140 - pL["z_offset"] * 2])
-        c2 = np.array([width // 2 + 50 + pR["x_offset"]
-                      * 2, 140 - pR["z_offset"] * 2])
+        pL, pR = self.params['left'], self.params['right']
+        c1 = np.array([width // 2 - 50 + pL['x_offset']
+                      * 2, 140 - pL['z_offset'] * 2])
+        c2 = np.array([width // 2 + 50 + pR['x_offset']
+                      * 2, 140 - pR['z_offset'] * 2])
 
-        for center, yaw_deg, color in [(c1, pL["angle"], (255, 0, 0)), (c2, pR["angle"], (0, 255, 0))]:
+        for center, yaw_deg, color in [(c1, pL['angle'], (255, 0, 0)), (c2, pR['angle'], (0, 255, 0))]:
             forward = -np.pi / 2 - np.deg2rad(yaw_deg)
             for a in (forward - np.deg2rad(55), forward + np.deg2rad(55)):
                 end = center + 110 * np.array([np.cos(a), np.sin(a)])
@@ -93,9 +93,9 @@ class CameraUI:
 
         # Controls Bar
         ctrl_bar = np.ones((80, width, 3), dtype=np.uint8) * 28
-        cv2.putText(ctrl_bar, f"L-Cam (Q/E/W/S/A/D): Angle: {pL["angle"]} deg   X-Off: {pL["x_offset"]} cm   Z-Off: {pL["z_offset"]} cm", (
+        cv2.putText(ctrl_bar, f"L-Cam (Q/E/W/S/A/D): Angle: {pL['angle']} deg   X-Off: {pL['x_offset']} cm   Z-Off: {pL['z_offset']} cm", (
             20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 120, 120), 1)
-        cv2.putText(ctrl_bar, f"R-Cam (U/O/I/K/J/L):  Angle: {pR["angle"]} deg   X-Off: {pR["x_offset"]} cm   Z-Off: {pR["z_offset"]} cm", (
+        cv2.putText(ctrl_bar, f"R-Cam (U/O/I/K/J/L):  Angle: {pR['angle']} deg   X-Off: {pR['x_offset']} cm   Z-Off: {pR['z_offset']} cm", (
             20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (120, 255, 120), 1)
 
         cv2.imshow(self.window_name, np.vstack(
@@ -105,34 +105,34 @@ class CameraUI:
         key = cv2.waitKey(30) & 0xFF
 
         if key in (ord("q"), ord("Q")):
-            self.params["left"]["angle"] = min(
-                90, self.params["left"]["angle"] + 1)
+            self.params['left']['angle'] = min(
+                90, self.params['left']['angle'] + 1)
         elif key in (ord("e"), ord("E")):
-            self.params["left"]["angle"] = max(-90,
-                                               self.params["left"]["angle"] - 1)
+            self.params['left']['angle'] = max(-90,
+                                               self.params['left']['angle'] - 1)
         elif key in (ord("w"), ord("W")):
-            self.params["left"]["z_offset"] += 1
+            self.params['left']['z_offset'] += 1
         elif key in (ord("s"), ord("S")):
-            self.params["left"]["z_offset"] -= 1
+            self.params['left']['z_offset'] -= 1
         elif key in (ord("a"), ord("A")):
-            self.params["left"]["x_offset"] -= 1
+            self.params['left']['x_offset'] -= 1
         elif key in (ord("d"), ord("D")):
-            self.params["left"]["x_offset"] += 1
+            self.params['left']['x_offset'] += 1
 
         elif key in (ord("u"), ord("U")):
-            self.params["right"]["angle"] = min(
-                90, self.params["right"]["angle"] + 1)
+            self.params['right']['angle'] = min(
+                90, self.params['right']['angle'] + 1)
         elif key in (ord("o"), ord("O")):
-            self.params["right"]["angle"] = max(-90,
-                                                self.params["right"]["angle"] - 1)
+            self.params['right']['angle'] = max(-90,
+                                                self.params['right']['angle'] - 1)
         elif key in (ord("i"), ord("I")):
-            self.params["right"]["z_offset"] += 1
+            self.params['right']['z_offset'] += 1
         elif key in (ord("k"), ord("K")):
-            self.params["right"]["z_offset"] -= 1
+            self.params['right']['z_offset'] -= 1
         elif key in (ord("j"), ord("J")):
-            self.params["right"]["x_offset"] -= 1
+            self.params['right']['x_offset'] -= 1
         elif key in (ord("l"), ord("L")):
-            self.params["right"]["x_offset"] += 1
+            self.params['right']['x_offset'] += 1
         elif key in (ord("p"), ord("P")):
             self.paused = not self.paused
 
