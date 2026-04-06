@@ -12,6 +12,7 @@ import cv2
 
 
 def _pool(depths, kernel: tuple[int, int]):
+    """Internal step of RANSAC, pools a depth image using `np.nanmean` on a rectangular kernel."""
     h, w = depths.shape
     w -= w % kernel[1]
     h -= h % kernel[0]
@@ -20,6 +21,8 @@ def _pool(depths, kernel: tuple[int, int]):
 
 
 def _sample(pooled):
+    """Internal step of RANSAC, samples 3 linearly-independent points."""
+
     h, w = pooled.shape
     A = np.zeros((3, 3))
     b = np.zeros(3)
@@ -43,6 +46,7 @@ def _plane(A, b):
 
 
 def _metric(depths, coeffs, tol: float):
+    """Internal step of RANSAC, computes an approximate inlier metric for a set of coefficients."""
     c1, c2, c3 = coeffs
     h, w = depths.shape
 
@@ -58,6 +62,8 @@ def _metric(depths, coeffs, tol: float):
 
 
 def _ransac_mask(depths, coeffs, tol: float):
+    """Internal step of RANSAC, generates a final ground plane mask for some coefficients."""
+
     h, w = depths.shape
     c1, c2, c3 = coeffs
 
@@ -68,6 +74,7 @@ def _ransac_mask(depths, coeffs, tol: float):
 
 
 def _ground_plane(pooled, tol, times):
+    """Internal RANSAC function, receives delegated computation tasks."""
     res = None
     best = 0
     for _ in range(times):
@@ -79,15 +86,30 @@ def _ground_plane(pooled, tol, times):
     return best, res
 
 
-def clean_depths(depths):
+def _clean_depths(depths):
+    """Internal step of RANSAC, removes irrelevant depth data."""
     depths = np.where(depths > 10000, np.nan, depths)
     return depths
 
 
 # TODO: make this handle multiple depth frames?
-def ground_plane(
-        depths, samples=100, kernel=(1, 16), tol=0.12, guess=np.array([0.0, 0.0, 0.0]), thread_pool=None, processes=4):
-    depths = clean_depths(depths)
+def ground_plane(depths, samples=100, kernel=(1, 16), tol=0.12,
+                 guess=np.array([0.0, 0.0, 0.0]), thread_pool=None, procs=4):
+    """
+    Uses random sample consensus (RANSAC) to identify generic obstacles.
+
+    - `depths`: numpy array of depths taken from the `sl.Mat.get_data()`
+    - `samples`: number of times to try fitting a plane to the data
+    - `kernel`: the (row x col) sized pooling kernel
+    - `tol`: tolerance of the RANSAC masking functions. Can usually leave as-is.
+    - `guess`: previous computed (pixel) coefficient array, if any. Helps provide more stable results.
+    - `thread_pool`: optional argument to delegate sampling process using `multiprocessing`
+    - `procs`: number of processes to delegate to
+    """
+    depths = _clean_depths(depths)
+
+    # ground plane needs to be fit to the inverse of depth
+    # this is scaled by the maximum depth for `tol` to be scene-agnostic
     max_depth = float(np.nanmax(depths))
     if max_depth is math.nan:
         return np.zeros_like(depths), guess
@@ -95,6 +117,7 @@ def ground_plane(
 
     pooled = _pool(inv_depths, kernel)
 
+    # compute inlier score for the guessed coefficients
     best_coeffs = np.array([0.0, 0.0, 0.0])
     if guess.shape != (3,) or guess is None:
         print("warning: invalid plane coefficient estimates")
@@ -104,34 +127,36 @@ def ground_plane(
         best_coeffs[1] *= float(kernel[0])
     best = _metric(pooled, best_coeffs, tol)
 
+    # delegate tasks and get the best results
     if thread_pool is None:
         run_best, run_coeffs = _ground_plane(pooled, tol, samples)
         if run_best > best:
             best_coeffs = run_coeffs
     else:
-        args = (pooled, tol, samples // processes)
+        args = (pooled, tol, samples // procs)
         results = thread_pool.starmap(
-            _ground_plane, [args for _ in range(processes)])
+            _ground_plane, [args for _ in range(procs)])
         _, best_coeffs = max(results, key=lambda t: t[0])
 
+    # divide by the kernel to work on the expanded depth image
     best_coeffs = cast(np.ndarray, best_coeffs)
     best_coeffs[0] /= kernel[1]
     best_coeffs[1] /= kernel[0]
 
     res = _ransac_mask(inv_depths, best_coeffs, tol)
-
     return 255 * res.astype(np.uint8), np.array(best_coeffs) / max_depth
 
 
 def real_coeffs(px_coeffs, intrinsics: Intrinsics):
+    """Converts pixel-space plane coefficients (`px_coeffs`) to real/camera-space plane coefficients using the supplied `intrinsics`"""
     c1, c2, c3 = px_coeffs
     # d = depth at the focal point
     d = 1 / (c1 * intrinsics.cx + c2 * intrinsics.cy + c3)
     return (-d * c1 * intrinsics.fx, d * c2 * intrinsics.fy, d)
 
 
-# angle of depression
 def real_angle(real_coeffs):
+    """Computes the angle of depression of the camera to the ground plane described by the provided real-space coefficients."""
     a, b, _ = real_coeffs
     rad = math.acos(1 / math.hypot(a, b, 1))
     if (math.isnan(rad)):
@@ -139,8 +164,9 @@ def real_angle(real_coeffs):
     return math.pi / 2 - rad
 
 
-def merge_masks(ground, mask):
-    driveable = ((ground == 255) & (mask == 0))
+def merge_masks(ground, lane):
+    """Merges the `ground` plane mask with a mask of the `lane` lines"""
+    driveable = ((ground == 255) & (lane == 0))
     driveable = driveable.astype(np.uint8) * 255
 
     close_kernel = np.ones((2, 2), np.uint8)

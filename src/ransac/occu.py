@@ -9,21 +9,27 @@ import math
 
 
 def create_ground_cloud(coords, ransac_coeffs):
-    # coords is a Nx2 numpy array containing coordinates (x, y)
-    # pass pixel coefficients
-
+    """
+    Generates a (pixel-space) cloud of points on the ground plane.
+    - `coords`: N by 2 numpy array containing coordinates in the image
+    - `ransac_coeffs`: plane coefficients outputted by `ground_plane()`
+    """
     c1, c2, c3 = ransac_coeffs
-
     z = 1 / (c1 * coords[:, 0] + c2 * coords[:, 1] + c3)
     z = z.reshape(-1, 1)
     return np.concatenate((coords.astype(np.float64), z), axis=1)
 
 
-def pixel_to_real(
-        pixel_cloud, real_coeffs, intr: Intrinsics, orientation: float = 0.0):
-    # outputs (x,y,z) with real z as depth, y as height
-    # y values are relative to the camera's height
-    # orientation (radians) is positive to orient the camera left
+def pixel_to_real(pixel_cloud, real_coeffs,
+                  intr: Intrinsics, orientation: float = 0.0):
+    """
+    Converts a point cloud from pixel-space to camera-space.
+    - `pixel_cloud`: self-explanatory
+    - `real_coeffs`: ground plane coefficients for real-world coordinate system
+    - `intr`: camera intrinsics (not a proportion)
+    - `orientation`: where the camera is pointing, with positive being leftward
+    - Returns: a point cloud in camera space (x, y, z in mm) with y-values relative to the camera height.
+    """
 
     # converts px into mm
     cloud = pixel_cloud.copy()
@@ -47,28 +53,29 @@ def pixel_to_real(
     return cloud @ rotation_matrix
 
 
-def composite(drive_occ, block_occ):
-    full = drive_occ & (block_occ != 1)
-    full = full.astype(np.uint8) * 255
-    full[(block_occ | drive_occ) != 1] = 127
-    return full
-
-
 # TODO decompose pitch + roll angles
 # TODO? can shave off a few ms by computing transformation matrix and using cv2.warpPerspective
 # the numpy fuckery in this just helps interpolation
 # INPUT: np.uint8 array representing the image mask
 def occ_grid(mask_in, real_coeffs, intr: Intrinsics, conf: GridConfiguration,
              pos: CameraPosition, thres=200):
-    res = 1
-    # grid should be symmetric
-    # first and second indices are number of layers to compute
+    """
+    Generates an bird's-eye view occupancy grid using bilinear interpolation.
+    - `mask_in`: np.uint8 array of the image mask
+    - `real_coeffs`: ground plane coefficients for real-world coordinate system
+    - `intr`: camera intrinsics (not a proportion)
+    - `conf`: grid configuration details like physical grid size
+    - `pos`: camera position and orientation relative to robot wheel-centre
+    - `thres`: bilinear interpolation threshold to mark a cell as empty.
+    """
+    
+    res = 2
+    # enforce grid symmetry
+    # first and second indices are number of interpolation layers to compute
     grid_shape = (res, res, 2 * int((0.5 * conf.gh) // conf.cw),
                   2 * int((0.5 * conf.gw) // conf.cw))
     true_width = conf.cw * grid_shape[3]
     true_height = conf.cw * grid_shape[2]
-
-    # go there, is the difference in depth of the prediction matching the depth at that actual place? is this process the same as the masking process? yes
 
     lys = np.arange(grid_shape[0])[:, None, None, None]
     lxs = np.arange(grid_shape[1])[None, :, None, None]
@@ -107,6 +114,7 @@ def occ_grid(mask_in, real_coeffs, intr: Intrinsics, conf: GridConfiguration,
     mask[[0, -1], :] = np.nan
     mask[:, [0, -1]] = np.nan
 
+    # copy the data over
     pxs = np.clip(pxs, 0, mask.shape[1] - 1).astype(np.int32)
     pys = np.clip(pys, 0, mask.shape[0] - 1).astype(np.int32)
 
