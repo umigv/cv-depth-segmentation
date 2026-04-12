@@ -10,6 +10,30 @@ import math
 import numpy as np
 import cv2
 
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Bool
+
+class DrivablePublisher(Node):
+    def __init__(self):
+        super().__init__('drivable_talker')
+        self.pub = self.create_publisher(Bool, 'ramp_drivable', 10)
+
+    def publish_drivable(self, is_drivable: bool):
+        msg = Bool()
+        msg.data = bool(is_drivable)
+        self.pub.publish(msg)
+        self.get_logger().info(f'ramp_drivable: {msg.data}')
+
+_drivable_node = None
+
+def publish_ramp_drivable(is_drivable: bool):
+    global _drivable_node
+    if not rclpy.ok():
+        rclpy.init()
+    if _drivable_node is None:
+        _drivable_node = DrivablePublisher()
+    _drivable_node.publish_drivable(is_drivable)
 
 def _pool(depths, kernel: tuple[int, int]):
     h, w = depths.shape
@@ -139,6 +163,7 @@ def real_angle(real_coeffs):
     return math.pi / 2 - rad
 
 
+MIN_DRIVABLE_PIXELS = 2000
 def merge_masks(ground, mask):
     driveable = ((ground == 255) & (mask == 0))
     driveable = driveable.astype(np.uint8) * 255
@@ -147,4 +172,8 @@ def merge_masks(ground, mask):
     driveable = cv2.morphologyEx(driveable, cv2.MORPH_CLOSE, close_kernel)
     open_kernel = np.ones((7, 7), np.uint8)
     driveable = cv2.morphologyEx(driveable, cv2.MORPH_OPEN, open_kernel)
+
+    drivable_pixel_count = cv2.countNonZero(driveable)
+    publish_ramp_drivable(drivable_pixel_count > MIN_DRIVABLE_PIXELS)
+
     return driveable

@@ -31,6 +31,12 @@ import time
 import signal
 import os
 
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Bool
+
+ramp_mode = False
+
 zed_list = []
 left_list = []
 depth_list = []
@@ -44,11 +50,30 @@ timestamps = {}
 images = {}
 depths = {}
 
+class RampModeListener(Node):
+    def __init__(self):
+        super().__init__('ramp_mode_listener')
+        self.sub = self.create_subscription(
+            Bool, 'ramp_mode', self.callback, 10)
+
+    def callback(self, msg: Bool):
+        global ramp_mode
+        ramp_mode = msg.data
+        self.get_logger().info(f'ramp_mode: {ramp_mode}')
+
+def start_ramp_mode_listener():
+    if not rclpy.ok():
+        rclpy.init()
+    node = RampModeListener()
+    t = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
+    t.start()
+    return node
 
 def signal_handler(signal, frame):
     global stop_signal
     stop_signal = True
     time.sleep(0.5)
+    rclpy.shutdown()
     exit()
 
 
@@ -217,4 +242,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    ramp_listener = start_ramp_mode_listener()
