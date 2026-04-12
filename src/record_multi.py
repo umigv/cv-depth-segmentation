@@ -239,6 +239,7 @@ def main():
         thread_list[index].join()
 
     print("\nFINISH")
+    rclpy.shutdown()
 
 
 if __name__ == "__main__":
