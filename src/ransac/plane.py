@@ -163,7 +163,9 @@ def real_angle(real_coeffs):
     return math.pi / 2 - rad
 
 
-MIN_DRIVABLE_PIXELS = 2000
+MIN_DRIVABLE_PIXELS = 1500 
+#TODO: make sure # of pixels (MIN_DRIVABLE_PIXELS) needed to activate ramp mode is right (1500 is val in no_mans_land.py)
+
 def merge_masks(ground, mask):
     driveable = ((ground == 255) & (mask == 0))
     driveable = driveable.astype(np.uint8) * 255
