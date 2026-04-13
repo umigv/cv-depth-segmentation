@@ -3,11 +3,11 @@ from dataclasses import dataclass
 
 @dataclass
 class Intrinsics:
-    cx: float
-    cy: float
-    fx: float
-    fy: float
-    tx: float = 0
+    cx: float  # pixel x-coordinate of the focal point
+    cy: float  # pixel y-coordinate of the focal point
+    fx: float  # focal length (in pixels) along x-axis
+    fy: float  # focal length (in pixels) along y-axis
+    tx: float = 0  # distance between the cameras (in mm)
 
 
 @dataclass

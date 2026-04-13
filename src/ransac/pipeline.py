@@ -25,10 +25,12 @@ class DepthSource(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def timestamp(self) -> int:
+        """Returns the timestamp associatede with the image/depth data"""
         pass
 
     @abc.abstractmethod
     def update(self) -> bool:
+        """Trigger an update, grabbing a new frame if possible"""
         pass
 
     @abc.abstractmethod
@@ -61,6 +63,7 @@ class HDF5Source(DepthSource):
         self.depth_maps = cast(
             h5py.Dataset, self.file['dep' + str(dataset_index)])
 
+        # scale intrinsics by the image dimensions
         h, w = self.depth_maps[0].shape
         self._intrinsics = Intrinsics(cx=self.info['cx_left'][()] * w,
                                       cy=self.info['cy_left'][()] * h,
@@ -76,6 +79,7 @@ class HDF5Source(DepthSource):
         self.file.close()
 
     def update(self) -> bool:
+        """Trigger an update, grabbing a new frame if possible"""
         self._timestamp = int(self.timestamps[self.frame_number][()])
         self._image = np.array(self.images[self.frame_number])
         self._depth_map = np.array(self.depth_maps[self.frame_number])
@@ -91,6 +95,7 @@ class HDF5Source(DepthSource):
         return self.frame_number
 
     def timestamp(self):
+        """Returns the timestamp associatede with the image/depth data"""
         return self._timestamp
 
     def image(self):
@@ -161,13 +166,13 @@ class LiveSource(DepthSource):
                                           tx=tx)
         else:
             print("[warn] LiveSource should not be initialised without the Zed SDK")
-            pass  # ! TODO: fill this out?
 
     def __delete__(self):
         if using_zed:
             self.cam.close()
 
     def update(self) -> bool:
+        """Trigger an update, grabbing a new frame if possible"""
         if not using_zed:
             return False
 
@@ -186,6 +191,7 @@ class LiveSource(DepthSource):
         return False
 
     def timestamp(self) -> int:
+        """Returns the timestamp associatede with the image/depth data"""
         return self._timestamp
 
     def image(self) -> np.ndarray:
@@ -202,6 +208,7 @@ class LiveSource(DepthSource):
 
 
 class MaskMethod(metaclass=abc.ABCMeta):
+    """Provides a filtering process (by default, simple HSV), for `DepthSegmentation`. Object must be callable, taking an argument of the current image mask"""
     @abc.abstractmethod
     def __call__(self, image: np.ndarray) -> np.ndarray:
         pass
@@ -215,6 +222,7 @@ class NoMask(MaskMethod):
 class BasicHSV(MaskMethod):
     def __init__(self, lower=np.array([0, 0, 180], dtype=np.uint8),
                  upper=np.array([255, 50, 255], dtype=np.uint8)):
+        """Creates an HSV mask functor with the specified `lower` and `upper` bounds."""
         self.lower = lower
         self.upper = upper
 
@@ -229,6 +237,14 @@ class DepthSegementation:
 
     def __init__(self, sources: list[tuple[DepthSource, CameraPosition]],
                  grid_conf: GridConfiguration, processes=4, *args, mask_method: MaskMethod = BasicHSV(), **kwargs):
+        """
+        Constructs a depth segmentation pipeline.
+        - `sources`: a list of pairs (tuples) of a `DepthSource` and its corresponding `CameraPosition`
+        - `grid_conf`: occupancy grid configuration
+        - `processes`: number of processes to split the RANSAC computation between
+        - `mask_method`: (kwarg-only) supply an alternative mask procedure, default is HSV mask for white
+        """
+
         self.grid_conf = grid_conf
         self.mask_method = mask_method  # keyword-only
 
@@ -244,17 +260,20 @@ class DepthSegementation:
         self._pool = Pool(processes) if processes > 0 else None
 
     def process(self, force_update=False) -> bool:
+        """Run the depth segmentation pipeline, with optional `force_update` to recompute occupancy grids even if new data was not received."""
         updated = force_update
 
         index = -1
         for source, position in self._sources:
             index += 1
+            # skip data that is already processed by comparing timestamp
             if not force_update:
                 if self.timestamps[index] == source.timestamp():
                     continue
 
+            # run the various ransac functions
             hsv_mask = self.mask_method(source.image())
-            depth_map = plane.clean_depths(source.depth_map())
+            depth_map = source.depth_map()
             ground_mask, px_coeffs = plane.ground_plane(
                 depth_map, 200, (1, 16), 0.12, self._guesses[index],
                 self._pool, self._processes)
@@ -276,12 +295,16 @@ class DepthSegementation:
         return np.logical_and.reduce([grid != 127 for grid in self.grids])
 
     def merge_simple(self, strategy=np.maximum):
+        """Applies the specified `strategy` to merge the grids. This is not optimal, `merge_grids` is recommended for competition use."""
+
         if len(self.grids) == 0:
             return np.array([])
 
         return strategy.reduce(self.grids)
 
     def merge_grids(self):
+        """Merge occupancy grids by granting highest priority to a camera which sees a cell to be free from any angle."""
+
         seen = np.where(self.merge_simple(np.maximum) == 255, 255, 127)
         blocked = np.logical_and(
             self.merge_simple(np.minimum) == 0, seen != 255)
