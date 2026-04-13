@@ -102,7 +102,7 @@ def ground_plane(
         best_coeffs = max_depth * guess.astype(float)
         best_coeffs[0] *= float(kernel[1])
         best_coeffs[1] *= float(kernel[0])
-    best = _metric(pooled, best_coeffs, tol)
+    best = max(1, _metric(pooled, best_coeffs, tol)) # give initial guess a slightly high value
 
     if thread_pool is None:
         run_best, run_coeffs = _ground_plane(pooled, tol, samples)

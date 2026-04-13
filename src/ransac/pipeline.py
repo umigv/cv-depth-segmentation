@@ -250,11 +250,9 @@ class DepthSegementation:
         for source, position in self._sources:
             index += 1
             if not force_update:
-                if self.timestamps[index] != source.timestamp():
-                    self.timestamps[index] = source.timestamp()
-                    updated = True
-                else:
+                if self.timestamps[index] == source.timestamp():
                     continue
+
             hsv_mask = self.mask_method(source.image())
             depth_map = plane.clean_depths(source.depth_map())
             ground_mask, px_coeffs = plane.ground_plane(
@@ -266,6 +264,8 @@ class DepthSegementation:
             occ = occu.occ_grid(lane_mask, real_coeffs,
                                 source.intrinsics(), self.grid_conf, position)
 
+            updated = True
+            self.timestamps[index] = source.timestamp()
             self._guesses[index] = px_coeffs
             self.masks[index] = lane_mask
             self.grids[index] = occ
