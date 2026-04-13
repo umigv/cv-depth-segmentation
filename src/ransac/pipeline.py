@@ -209,7 +209,7 @@ class MaskMethod(metaclass=abc.ABCMeta):
 
 class NoMask(MaskMethod):
     def __call__(self, image: np.ndarray):
-        return image
+        return 255 * np.zeros((image.shape[0], image.shape[1]))
 
 
 class BasicHSV(MaskMethod):
@@ -271,6 +271,9 @@ class DepthSegementation:
             self.grids[index] = occ
 
         return updated
+
+    def overlap(self):
+        return np.logical_and.reduce([grid != 127 for grid in self.grids])
 
     def merge_simple(self, strategy=np.maximum):
         if len(self.grids) == 0:
