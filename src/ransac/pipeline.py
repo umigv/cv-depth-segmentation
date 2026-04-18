@@ -277,6 +277,10 @@ class DepthSegementation:
             ground_mask, px_coeffs = plane.ground_plane(
                 depth_map, 200, (1, 16), 0.12, self._guesses[index],
                 self._pool, self._processes)
+            if ground_mask is None:
+                print("warning (depseg.process): no mask from ground_plane")
+                return False
+            
             lane_mask = plane.merge_masks(ground_mask, hsv_mask)
 
             real_coeffs = plane.real_coeffs(px_coeffs, source.intrinsics())

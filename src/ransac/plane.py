@@ -112,7 +112,7 @@ def ground_plane(depths, samples=100, kernel=(1, 16), tol=0.12,
     # this is scaled by the maximum depth for `tol` to be scene-agnostic
     max_depth = float(np.nanmax(depths))
     if not math.isfinite(max_depth):
-        return np.zeros_like(depths), guess
+        return None, guess
     inv_depths = max_depth / depths
 
     pooled = _pool(inv_depths, kernel)
