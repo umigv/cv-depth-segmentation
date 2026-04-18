@@ -220,7 +220,7 @@ class NoMask(MaskMethod):
 
 
 class BasicHSV(MaskMethod):
-    def __init__(self, lower=np.array([0, 0, 180], dtype=np.uint8),
+    def __init__(self, lower=np.array([0, 0, 200], dtype=np.uint8),
                  upper=np.array([255, 50, 255], dtype=np.uint8)):
         """Creates an HSV mask functor with the specified `lower` and `upper` bounds."""
         self.lower = lower
@@ -310,6 +310,6 @@ class DepthSegementation:
         """Merge occupancy grids by granting highest priority to a camera which sees a cell to be free from any angle."""
 
         seen = np.where(self.merge_simple(np.maximum) == 255, 255, 127)
-        blocked = np.logical_and(
+        blocked = np.logical_or(
             self.merge_simple(np.minimum) == 0, seen != 255)
         return np.where(blocked, 0, seen)

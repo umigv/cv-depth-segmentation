@@ -24,13 +24,13 @@ def cam_init(ser=None):
 
 
 def print_pos(ui_params: dict[str, dict[str, int]]):
-    left_x = 10 * ui_params['left']['x_offset']
-    left_z = 10 * ui_params['left']['z_offset']
+    left_x = ui_params['left']['x_offset']
+    left_z = ui_params['left']['z_offset']
     left_r = math.radians(ui_params['left']['angle'])
     print(f"left: rsc.CameraPosition({left_x}, {left_z}, {left_r})")
 
-    right_x = 10 * ui_params['right']['x_offset']
-    right_z = 10 * ui_params['right']['z_offset']
+    right_x = ui_params['right']['x_offset']
+    right_z = ui_params['right']['z_offset']
     right_r = math.radians(ui_params['right']['angle'])
     print(f"right: rsc.CameraPosition({right_x}, {right_z}, {right_r})")
 
@@ -45,7 +45,7 @@ def tune_live():
     depseg = rsc.DepthSegementation([
         (left, rsc.CameraPosition(-110, 60, 0.52)),
         (right, rsc.CameraPosition(135, 60, -0.52))
-    ], conf, mask_method=rsc.NoMask())
+    ], conf, mask_method=rsc.BasicHSV())
 
     ui = CameraUI()
 

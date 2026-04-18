@@ -29,9 +29,9 @@ rad: rotation of the camera to the left (rad)
 
 Then, you can fine-tune the calibration to get the grids to match. For two cameras, you can use `tuner.py`. For a single camera, the tuner is not needed.
 
-The merged occupancy grid (on the right) shows the logical XOR of the grids generated from the left and right cameras; you should aim for it to be as black as possible. Once done, press `X` to exit the tuning program. The calibrated `CameraPosition`s will be displayed, and you can copy these directly into the code that needs it.
+The merged occupancy grid (on the right) shows the logical XOR of the grids generated from the left and right cameras; you should aim for it to be as black as possible **for things that are on the ground**. It is expected that tall objects seen from the two cameras' perspectives will produce different shadows and thus different footprints on the occupancy grid. Aim to match the lane lines as well as you can.
 
-For `cv-autonav`, this should be replacing the indicated section of code below.
+Once done, press `X` to exit the tuning program. The calibrated `CameraPosition`s will be displayed, and you can copy these directly into the code that needs it. For `cv-autonav`, this should be replacing the indicated section of code below.
 
 ```python
 if __name__ == "__main__":
