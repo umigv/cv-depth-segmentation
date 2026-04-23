@@ -220,16 +220,32 @@ class NoMask(MaskMethod):
 
 
 class BasicHSV(MaskMethod):
-    def __init__(self, lower=np.array([0, 0, 200], dtype=np.uint8),
-                 upper=np.array([255, 50, 255], dtype=np.uint8)):
-        """Creates an HSV mask functor with the specified `lower` and `upper` bounds."""
+    def __init__(self, 
+                 lower=np.array([0, 0, 200], dtype=np.uint8),
+                 upper=np.array([179, 50, 255], dtype=np.uint8),
+                 min_area=200):
+        """
+        Args:
+            lower/upper: HSV bounds.
+            min_area: Minimum contour area in pixels to keep.
+            kernel_size: Size of the structural element for morph ops.
+        """
         self.lower = lower
         self.upper = upper
+        self.min_area = min_area
 
     def __call__(self, image: np.ndarray):
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(image, self.lower, self.upper)
-        return 255 * mask.astype(np.uint8)
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv, self.lower, self.upper)
+        filtered_mask = np.zeros_like(mask)
+        
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        for cnt in contours:
+            if cv2.contourArea(cnt) > self.min_area:
+                cv2.drawContours(filtered_mask, [cnt], -1, 255, thickness=cv2.FILLED)
+
+        return filtered_mask
 
 
 class DepthSegementation:
