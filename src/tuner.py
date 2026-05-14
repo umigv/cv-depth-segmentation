@@ -24,28 +24,28 @@ def cam_init(ser=None):
 
 
 def print_pos(ui_params: dict[str, dict[str, int]]):
-    left_x = 10 * ui_params['left']['x_offset']
-    left_z = 10 * ui_params['left']['z_offset']
+    left_x = ui_params['left']['x_offset']
+    left_z = ui_params['left']['z_offset']
     left_r = math.radians(ui_params['left']['angle'])
     print(f"left: rsc.CameraPosition({left_x}, {left_z}, {left_r})")
 
-    right_x = 10 * ui_params['right']['x_offset']
-    right_z = 10 * ui_params['right']['z_offset']
+    right_x = ui_params['right']['x_offset']
+    right_z = ui_params['right']['z_offset']
     right_r = math.radians(ui_params['right']['angle'])
     print(f"right: rsc.CameraPosition({right_x}, {right_z}, {right_r})")
 
 
 def tune_live():
-    left_ser = None
-    right_ser = None
+    left_ser = 39394535
+    right_ser = 36466710
 
     left = rsc.LiveSource(cam_init(left_ser))
     right = rsc.LiveSource(cam_init(right_ser))
     conf = rsc.GridConfiguration(5000.0, 5000.0, 50.0)
     depseg = rsc.DepthSegementation([
-        (left, rsc.CameraPosition(0, 0, 0)),
-        (right, rsc.CameraPosition(0, 0, 0))
-    ], conf)
+        (left, rsc.CameraPosition(-110, 60, 0.52)),
+        (right, rsc.CameraPosition(135, 60, -0.52))
+    ], conf, mask_method=rsc.BasicHSV())
 
     ui = CameraUI()
 
@@ -58,20 +58,20 @@ def tune_live():
 
         depseg._sources = [
             (depseg._sources[0][0], rsc.CameraPosition(
-                10 * ui.params['left']['x_offset'],
-                10 * ui.params['left']['z_offset'],
+                ui.params['left']['x_offset'],
+                ui.params['left']['z_offset'],
                 math.radians(ui.params['left']['angle'])
             )),
             (depseg._sources[1][0], rsc.CameraPosition(
-                10 * ui.params['right']['x_offset'],
-                10 * ui.params['right']['z_offset'],
+                 ui.params['right']['x_offset'],
+                ui.params['right']['z_offset'],
                 math.radians(ui.params['right']['angle'])
             ))
         ]
 
         close = ui.render(
             grids=depseg.grids,
-            merged=depseg.merge_simple(np.logical_xor) * 255
+            merged=np.where(depseg.overlap(), depseg.merge_simple(np.logical_xor) * 255, 127)
         )
 
         if close:
@@ -129,7 +129,7 @@ def tune_offline():
 
 
 if __name__ == '__main__':
-    if input("tune from camera input? (y/N):").startswith("y"):
+    if input("tune from camera input? (y/N):").lower().startswith("y"):
         tune_live()
     else:
         tune_offline()

@@ -88,7 +88,7 @@ def _ground_plane(pooled, tol, times):
 
 def _clean_depths(depths):
     """Internal step of RANSAC, removes irrelevant depth data."""
-    depths = np.where(depths > 10000, np.nan, depths)
+    depths = np.where(depths > 10000 | np.isinf(depths), np.nan, depths)
     return depths
 
 
@@ -111,8 +111,8 @@ def ground_plane(depths, samples=100, kernel=(1, 16), tol=0.12,
     # ground plane needs to be fit to the inverse of depth
     # this is scaled by the maximum depth for `tol` to be scene-agnostic
     max_depth = float(np.nanmax(depths))
-    if max_depth is math.nan:
-        return np.zeros_like(depths), guess
+    if not math.isfinite(max_depth):
+        return None, guess
     inv_depths = max_depth / depths
 
     pooled = _pool(inv_depths, kernel)
@@ -125,7 +125,7 @@ def ground_plane(depths, samples=100, kernel=(1, 16), tol=0.12,
         best_coeffs = max_depth * guess.astype(float)
         best_coeffs[0] *= float(kernel[1])
         best_coeffs[1] *= float(kernel[0])
-    best = _metric(pooled, best_coeffs, tol)
+    best = max(1, _metric(pooled, best_coeffs, tol)) # give initial guess a slightly high value
 
     # delegate tasks and get the best results
     if thread_pool is None:
@@ -136,7 +136,8 @@ def ground_plane(depths, samples=100, kernel=(1, 16), tol=0.12,
         args = (pooled, tol, samples // procs)
         results = thread_pool.starmap(
             _ground_plane, [args for _ in range(procs)])
-        _, best_coeffs = max(results, key=lambda t: t[0])
+        results.append((best, best_coeffs))
+        best, best_coeffs = max(results, key=lambda t: t[0])
 
     # divide by the kernel to work on the expanded depth image
     best_coeffs = cast(np.ndarray, best_coeffs)

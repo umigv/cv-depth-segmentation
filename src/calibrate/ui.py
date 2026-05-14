@@ -31,8 +31,8 @@ class CameraUI:
         self.window_name = "Camera Merge Tuner"
 
         self.params = {
-            "left": {"angle": 0, "x_offset": 0, "z_offset": 0},
-            "right": {"angle": 0, "x_offset": 0, "z_offset": 0}
+            "left": {"angle": 30, "x_offset": -110, "z_offset": 60},
+            "right": {"angle": -30, "x_offset": 135, "z_offset": 60}
         }
         self.paused = False
 
@@ -93,9 +93,9 @@ class CameraUI:
 
         # Controls Bar
         ctrl_bar = np.ones((80, width, 3), dtype=np.uint8) * 28
-        cv2.putText(ctrl_bar, f"L-Cam (Q/E/W/S/A/D): Angle: {pL['angle']} deg   X-Off: {pL['x_offset']} cm   Z-Off: {pL['z_offset']} cm", (
+        cv2.putText(ctrl_bar, f"L-Cam (Q/E/W/S/A/D): Angle: {pL['angle']} deg   X-Off: {pL['x_offset']} mm   Z-Off: {pL['z_offset']} mm", (
             20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 120, 120), 1)
-        cv2.putText(ctrl_bar, f"R-Cam (U/O/I/K/J/L):  Angle: {pR['angle']} deg   X-Off: {pR['x_offset']} cm   Z-Off: {pR['z_offset']} cm", (
+        cv2.putText(ctrl_bar, f"R-Cam (U/O/I/K/J/L):  Angle: {pR['angle']} deg   X-Off: {pR['x_offset']} mm   Z-Off: {pR['z_offset']} mm", (
             20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (120, 255, 120), 1)
 
         cv2.imshow(self.window_name, np.vstack(
@@ -111,13 +111,13 @@ class CameraUI:
             self.params['left']['angle'] = max(-90,
                                                self.params['left']['angle'] - 1)
         elif key in (ord("w"), ord("W")):
-            self.params['left']['z_offset'] += 1
+            self.params['left']['z_offset'] += 10
         elif key in (ord("s"), ord("S")):
-            self.params['left']['z_offset'] -= 1
+            self.params['left']['z_offset'] -= 10
         elif key in (ord("a"), ord("A")):
-            self.params['left']['x_offset'] -= 1
+            self.params['left']['x_offset'] -= 10
         elif key in (ord("d"), ord("D")):
-            self.params['left']['x_offset'] += 1
+            self.params['left']['x_offset'] += 10
 
         elif key in (ord("u"), ord("U")):
             self.params['right']['angle'] = min(
@@ -126,13 +126,13 @@ class CameraUI:
             self.params['right']['angle'] = max(-90,
                                                 self.params['right']['angle'] - 1)
         elif key in (ord("i"), ord("I")):
-            self.params['right']['z_offset'] += 1
+            self.params['right']['z_offset'] += 10
         elif key in (ord("k"), ord("K")):
-            self.params['right']['z_offset'] -= 1
+            self.params['right']['z_offset'] -= 10
         elif key in (ord("j"), ord("J")):
-            self.params['right']['x_offset'] -= 1
+            self.params['right']['x_offset'] -= 10
         elif key in (ord("l"), ord("L")):
-            self.params['right']['x_offset'] += 1
+            self.params['right']['x_offset'] += 10
         elif key in (ord("p"), ord("P")):
             self.paused = not self.paused
 

@@ -216,20 +216,36 @@ class MaskMethod(metaclass=abc.ABCMeta):
 
 class NoMask(MaskMethod):
     def __call__(self, image: np.ndarray):
-        return image
+        return 255 * np.zeros((image.shape[0], image.shape[1]))
 
 
 class BasicHSV(MaskMethod):
-    def __init__(self, lower=np.array([0, 0, 180], dtype=np.uint8),
-                 upper=np.array([255, 50, 255], dtype=np.uint8)):
-        """Creates an HSV mask functor with the specified `lower` and `upper` bounds."""
+    def __init__(self, 
+                 lower=np.array([0, 0, 200], dtype=np.uint8),
+                 upper=np.array([179, 50, 255], dtype=np.uint8),
+                 min_area=200):
+        """
+        Args:
+            lower/upper: HSV bounds.
+            min_area: Minimum contour area in pixels to keep.
+            kernel_size: Size of the structural element for morph ops.
+        """
         self.lower = lower
         self.upper = upper
+        self.min_area = min_area
 
     def __call__(self, image: np.ndarray):
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(image, self.lower, self.upper)
-        return 255 * mask.astype(np.uint8)
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv, self.lower, self.upper)
+        filtered_mask = np.zeros_like(mask)
+        
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        for cnt in contours:
+            if cv2.contourArea(cnt) > self.min_area:
+                cv2.drawContours(filtered_mask, [cnt], -1, 255, thickness=cv2.FILLED)
+
+        return filtered_mask
 
 
 class DepthSegementation:
@@ -270,10 +286,7 @@ class DepthSegementation:
             index += 1
             # skip data that is already processed by comparing timestamp
             if not force_update:
-                if self.timestamps[index] != source.timestamp():
-                    self.timestamps[index] = source.timestamp()
-                    updated = True
-                else:
+                if self.timestamps[index] == source.timestamp():
                     continue
 
             # run the various ransac functions
@@ -282,6 +295,10 @@ class DepthSegementation:
             ground_mask, px_coeffs = plane.ground_plane(
                 depth_map, 200, (1, 16), 0.12, self._guesses[index],
                 self._pool, self._processes)
+            if ground_mask is None:
+                print("warning (depseg.process): no mask from ground_plane")
+                return False
+            
             if self.ignore_mask is not None:
                 ground_mask = ground_mask & ~self.ignore_mask(source.image())
             lane_mask = plane.merge_masks(ground_mask, hsv_mask)
@@ -290,11 +307,16 @@ class DepthSegementation:
             occ = occu.occ_grid(lane_mask, real_coeffs,
                                 source.intrinsics(), self.grid_conf, position)
 
+            updated = True
+            self.timestamps[index] = source.timestamp()
             self._guesses[index] = px_coeffs
             self.masks[index] = lane_mask
             self.grids[index] = occ
 
         return updated
+
+    def overlap(self):
+        return np.logical_and.reduce([grid != 127 for grid in self.grids])
 
     def merge_simple(self, strategy=np.maximum):
         """Applies the specified `strategy` to merge the grids. This is not optimal, `merge_grids` is recommended for competition use."""
@@ -308,6 +330,6 @@ class DepthSegementation:
         """Merge occupancy grids by granting highest priority to a camera which sees a cell to be free from any angle."""
 
         seen = np.where(self.merge_simple(np.maximum) == 255, 255, 127)
-        blocked = np.logical_and(
+        blocked = np.logical_or(
             self.merge_simple(np.minimum) == 0, seen != 255)
         return np.where(blocked, 0, seen)
