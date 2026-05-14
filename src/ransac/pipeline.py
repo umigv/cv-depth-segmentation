@@ -220,7 +220,7 @@ class NoMask(MaskMethod):
 
 
 class BasicHSV(MaskMethod):
-    def __init__(self, 
+    def __init__(self,
                  lower=np.array([0, 0, 200], dtype=np.uint8),
                  upper=np.array([179, 50, 255], dtype=np.uint8),
                  min_area=200):
@@ -238,12 +238,14 @@ class BasicHSV(MaskMethod):
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(hsv, self.lower, self.upper)
         filtered_mask = np.zeros_like(mask)
-        
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
+
+        contours, _ = cv2.findContours(
+            mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
         for cnt in contours:
             if cv2.contourArea(cnt) > self.min_area:
-                cv2.drawContours(filtered_mask, [cnt], -1, 255, thickness=cv2.FILLED)
+                cv2.drawContours(
+                    filtered_mask, [cnt], -1, 255, thickness=cv2.FILLED)
 
         return filtered_mask
 
@@ -251,8 +253,11 @@ class BasicHSV(MaskMethod):
 class DepthSegementation:
     """Handles all depth segmentation processing. Requires sources to be `.update()`d before calling `process()`"""
 
-    def __init__(self, sources: list[tuple[DepthSource, CameraPosition]],
-                 grid_conf: GridConfiguration, processes=4, *args, mask_method: MaskMethod = BasicHSV(), ignore_mask: MaskMethod | None = None, **kwargs):
+    def __init__(
+            self, sources: list[tuple[DepthSource, CameraPosition]],
+            grid_conf: GridConfiguration, processes=4, *args,
+            mask_method: MaskMethod = BasicHSV(),
+            ignore_mask: MaskMethod | None = None, **kwargs):
         """
         Constructs a depth segmentation pipeline.
         - `sources`: a list of pairs (tuples) of a `DepthSource` and its corresponding `CameraPosition`
@@ -298,9 +303,8 @@ class DepthSegementation:
             if ground_mask is None:
                 print("warning (depseg.process): no mask from ground_plane")
                 return False
-            
             if self.ignore_mask is not None:
-                ground_mask = ground_mask & ~self.ignore_mask(source.image())
+                ground_mask |= self.ignore_mask(source.image()) == 255
             lane_mask = plane.merge_masks(ground_mask, hsv_mask)
 
             real_coeffs = plane.real_coeffs(px_coeffs, source.intrinsics())
