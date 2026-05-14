@@ -236,17 +236,19 @@ class DepthSegementation:
     """Handles all depth segmentation processing. Requires sources to be `.update()`d before calling `process()`"""
 
     def __init__(self, sources: list[tuple[DepthSource, CameraPosition]],
-                 grid_conf: GridConfiguration, processes=4, *args, mask_method: MaskMethod = BasicHSV(), **kwargs):
+                 grid_conf: GridConfiguration, processes=4, *args, mask_method: MaskMethod = BasicHSV(), ignore_mask: MaskMethod | None = None, **kwargs):
         """
         Constructs a depth segmentation pipeline.
         - `sources`: a list of pairs (tuples) of a `DepthSource` and its corresponding `CameraPosition`
         - `grid_conf`: occupancy grid configuration
         - `processes`: number of processes to split the RANSAC computation between
-        - `mask_method`: (kwarg-only) supply an alternative mask procedure, default is HSV mask for white
+        - `mask_method`: (kwarg-only) supply an alternative mask procedure to mask out lane lines on the ground, default is HSV mask for white
+        - `ignore_mask`: (kwarg-only) supply a MaskMethod to ignore areas of the camera frame 
         """
 
         self.grid_conf = grid_conf
         self.mask_method = mask_method  # keyword-only
+        self.ignore_mask = ignore_mask  # keyword-only
 
         self._sources = sources
         self._guesses = [np.array([0.0, 0.0, 0.0], dtype=float)
@@ -280,6 +282,8 @@ class DepthSegementation:
             ground_mask, px_coeffs = plane.ground_plane(
                 depth_map, 200, (1, 16), 0.12, self._guesses[index],
                 self._pool, self._processes)
+            if self.ignore_mask is not None:
+                ground_mask = ground_mask & ~self.ignore_mask(source.image())
             lane_mask = plane.merge_masks(ground_mask, hsv_mask)
 
             real_coeffs = plane.real_coeffs(px_coeffs, source.intrinsics())
